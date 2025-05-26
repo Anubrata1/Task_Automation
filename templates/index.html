@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Allocation Distributor - Openreach</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: #f4f7fa;
+            color: #333;
+        }
+        header {
+            background-color: #003865;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        header h1 { margin: 0; font-size: 28px; letter-spacing: 1px; }
+        main {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2, h3 { color: #003865; }
+        .upload-box {
+            border: 2px dashed #0078d4;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            border-radius: 8px;
+            background-color: #f0f8ff;
+        }
+        button {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #005a9e; }
+        .instructions {
+            background: #e6f2ff;
+            padding: 15px;
+            border-left: 5px solid #0078d4;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        #result, #pendingResult, #multiPendingResult, #hourlyResult {
+            margin-top: 20px;
+            display: none;
+            text-align: center;
+        }
+        footer {
+            background-color: #003865;
+            color: white;
+            text-align: center;
+            padding: 15px 10px;
+            margin-top: 40px;
+            font-size: 14px;
+        }
+        a {
+            color: #0078d4;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        a:hover { text-decoration: underline; }
+        .file-list {
+            margin: 15px 0;
+            text-align: left;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        .remove-file {
+            color: #ff4444;
+            cursor: pointer;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .add-more-btn {
+            background: #28a745;
+            margin-top: 10px;
+        }
+        .add-more-btn:hover {
+            background: #218838;
+        }
+        .file-input-container {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Openreach Allocation Tools</h1>
+    </header>
+
+    <main>
+        <h2>Distribute Allocation</h2>
+        <div class="instructions">
+            <h3>File Requirements:</h3>
+            <p><strong>Allocation File:</strong> ESTIMATE, CONTRACTOR, CODE, ASSET_TAGGING</p>
+            <p><strong>Associate File:</strong> ASSOCIATE_NAME, EIN, TEAM_LEADER</p>
+        </div>
+
+        <form id="uploadForm">
+            <div class="upload-box">
+                <h3>Upload Allocation File</h3>
+                <input type="file" id="allocationFile" accept=".xlsx" required>
+            </div>
+
+            <div class="upload-box">
+                <h3>Upload Associate File</h3>
+                <input type="file" id="associateFile" accept=".xlsx" required>
+            </div>
+
+            <button type="submit">Distribute Allocations</button>
+        </form>
+
+        <div id="result">
+            <p><a id="downloadLink" href="#">Download Distributed Allocations</a></p>
+        </div>
+
+        <hr>
+
+        <h2>Check Pending Allocations (Single Associate)</h2>
+        <div class="instructions">
+            <p><strong>Main File:</strong> ASSOCIATE_NAME, TOTAL_ALLOCATIONS</p>
+            <p><strong>Daily File:</strong> ASSOCIATE_NAME, DONE_ALLOCATIONS</p>
+        </div>
+
+        <form id="pendingForm">
+            <div class="upload-box">
+                <h3>Upload Main Allocation File</h3>
+                <input type="file" id="mainFile" accept=".xlsx" required>
+            </div>
+
+            <div class="upload-box">
+                <h3>Upload Daily Report File</h3>
+                <input type="file" id="dailyFile" accept=".xlsx" required>
+            </div>
+
+            <button type="submit">Check Pending</button>
+        </form>
+
+        <div id="pendingResult">
+            <p><a id="pendingDownload" href="#">Download Pending Report</a></p>
+        </div>
+
+        <hr>
+
+        <h2>Check Pending Allocations (Multiple Associates)</h2>
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ol>
+                <li>Upload daily allocation files (showing total allocations per associate)</li>
+                <li>Upload daily work files (showing completed allocations per associate)</li>
+                <li>Click "Add File" after each selection</li>
+                <li>Submit when all files are uploaded</li>
+            </ol>
+            <p><strong>File Requirements:</strong></p>
+            <p><strong>Allocation Files:</strong> ASSOCIATE_NAME, TOTAL_ALLOCATIONS</p>
+            <p><strong>Work Files:</strong> ASSOCIATE_NAME, DONE_ALLOCATIONS</p>
+        </div>
+
+        <form id="multiPendingForm">
+            <div class="upload-box">
+                <h3>Daily Allocation Files</h3>
+                <div class="file-input-container">
+                    <input type="file" id="mainFileInput" accept=".xlsx">
+                    <button type="button" class="add-more-btn" onclick="handleFileAdd('main')">Add Allocation File</button>
+                </div>
+                <div class="file-list" id="mainFilesList"></div>
+            </div>
+
+            <div class="upload-box">
+                <h3>Daily Work Files</h3>
+                <div class="file-input-container">
+                    <input type="file" id="dailyFileInput" accept=".xlsx">
+                    <button type="button" class="add-more-btn" onclick="handleFileAdd('daily')">Add Work File</button>
+                </div>
+                <div class="file-list" id="dailyFilesList"></div>
+            </div>
+
+            <button type="submit">Check Pending Allocations</button>
+        </form>
+
+        <div id="multiPendingResult">
+            <p><a id="multiPendingDownload" href="#">Download Pending Allocations Report</a></p>
+        </div>
+
+        <hr>
+
+        <h2>Check Hourly Completions</h2>
+    <div class="instructions">
+        <p>Upload hourly reports for multiple associates. Click "Add File" after each selection.</p>
+    </div>
+    <div class="upload-box">
+        <h3>Upload Hourly Files</h3>
+        <form id="hourlyForm" action="/hourly" method="POST" enctype="multipart/form-data">
+    <div class="file-input-container">
+        <input type="file" id="hourlyFileInput" name="hourly_files" accept=".xlsx" multiple>
+        <button type="button" class="add-more-btn" onclick="handleHourlyAdd()">Add Hourly File</button>
+    </div>
+    <div class="file-list" id="hourlyFilesList"></div>
+    <button type="submit">Generate Hourly Report</button>
+</form>
+
+    </div>
+
+    <div id="hourlyResult">
+        <p><a id="hourlyDownloadLink" href="#">Download Hourly Report</a></p>
+    </div>
+</main>
+
+<footer>
+    &copy; 2025 Openreach. All Rights Reserved.
+</footer>
+
+<script>
+    const mainFiles = [];
+    const dailyFiles = [];
+    const hourlyFiles = [];
+
+    function handleFileAdd(type) {
+        const inputId = type === 'main' ? 'mainFileInput' : 'dailyFileInput';
+        const input = document.getElementById(inputId);
+        const file = input.files[0];
+
+        if (file) {
+            const fileArray = type === 'main' ? mainFiles : dailyFiles;
+            const listId = type === 'main' ? 'mainFilesList' : 'dailyFilesList';
+
+            const fileExists = fileArray.some(f => f.name === file.name && f.size === file.size);
+            if (!fileExists) {
+                fileArray.push(file);
+                updateFileList(fileArray, listId);
+            }
+            input.value = '';
+        } else {
+            alert('Please select a file first');
+        }
+    }
+
+    function updateFileList(fileArray, listId) {
+        const fileList = document.getElementById(listId);
+        fileList.innerHTML = '';
+        fileArray.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            item.innerHTML = ` 
+                <span>${file.name}</span>
+                <span class="remove-file" onclick="removeFile('${listId}', ${index})">×</span>
+            `;
+            fileList.appendChild(item);
+        });
+    }
+
+    function removeFile(listId, index) {
+        let fileArray;
+        if (listId === 'mainFilesList') fileArray = mainFiles;
+        else if (listId === 'dailyFilesList') fileArray = dailyFiles;
+        else if (listId === 'hourlyFilesList') fileArray = hourlyFiles;
+        fileArray.splice(index, 1);
+        updateFileList(fileArray, listId);
+    }
+
+    function handleHourlyAdd() {
+        const input = document.getElementById('hourlyFileInput');
+        const file = input.files[0];
+        if (file) {
+            const fileExists = hourlyFiles.some(f => f.name === file.name && f.size === file.size);
+            if (!fileExists) {
+                hourlyFiles.push(file);
+                updateFileList(hourlyFiles, 'hourlyFilesList');
+            }
+            input.value = '';
+        } else {
+            alert('Please select a file first');
+        }
+    }
+
+    // Handle the hourly report form submission
+    document.getElementById('hourlyForm').onsubmit = async function(e) {
+        e.preventDefault();
+        if (hourlyFiles.length === 0) {
+            alert("Please upload at least one hourly report file.");
+            return;
+        }
+
+        let formData = new FormData();
+        hourlyFiles.forEach(file => formData.append('hourly_files', file));
+
+        try {
+            document.getElementById('hourlyResult').style.display = 'none';
+            let response = await fetch('/hourly', { method: 'POST', body: formData });
+            if (!response.ok) throw new Error(await response.text());
+
+            let blob = await response.blob();
+            document.getElementById('hourlyDownloadLink').href = URL.createObjectURL(blob);
+            document.getElementById('hourlyResult').style.display = 'block';
+        } catch (error) {
+            alert("Error: " + error.message);
+        }
+    };
+
+    // Handle the allocation and associate files form submission
+    document.getElementById('uploadForm').onsubmit = async function(e) {
+        e.preventDefault();
+        let formData = new FormData();
+        formData.append('allocation_file', document.getElementById('allocationFile').files[0]);
+        formData.append('associate_file', document.getElementById('associateFile').files[0]);
+
+        try {
+            document.getElementById('result').style.display = 'none';
+            let response = await fetch('/process', { method: 'POST', body: formData });
+            if (!response.ok) throw new Error(await response.text());
+            let blob = await response.blob();
+            document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+            document.getElementById('result').style.display = 'block';
+        } catch (error) {
+            alert("Error: " + error.message);
+        }
+    };
+
+    // Handle the pending tasks form submission
+    document.getElementById('pendingForm').onsubmit = async function(e) {
+        e.preventDefault();
+        let formData = new FormData();
+        formData.append('main_file', document.getElementById('mainFile').files[0]);
+        formData.append('daily_file', document.getElementById('dailyFile').files[0]);
+
+        try {
+            document.getElementById('pendingResult').style.display = 'none';
+            let response = await fetch('/pending', { method: 'POST', body: formData });
+            if (!response.ok) throw new Error(await response.text());
+            let blob = await response.blob();
+            document.getElementById('pendingDownload').href = URL.createObjectURL(blob);
+            document.getElementById('pendingResult').style.display = 'block';
+        } catch (error) {
+            alert("Error: " + error.message);
+        }
+    };
+
+    // Handle multiple pending tasks form submission
+    document.getElementById('multiPendingForm').onsubmit = async function(e) {
+        e.preventDefault();
+        if (mainFiles.length === 0 || dailyFiles.length === 0) {
+            alert('Please upload at least one allocation file and one work file');
+            return;
+        }
+
+        let formData = new FormData();
+        mainFiles.forEach(file => formData.append('main_files', file));
+        dailyFiles.forEach(file => formData.append('daily_files', file));
+
+        const resultDiv = document.getElementById('multiPendingResult');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<p>Processing files... Please wait</p>';
+
+        try {
+            let response = await fetch('/pending-multiple', { method: 'POST', body: formData });
+            if (!response.ok) throw new Error(await response.text());
+
+            let blob = await response.blob();
+            resultDiv.innerHTML = `
+                <p>
+                    <a id="multiPendingDownload" href="${URL.createObjectURL(blob)}" download="pending_allocations.xlsx">
+                        Download Pending Allocations Report
+                    </a>
+                </p>
+            `;
+        } catch (error) {
+            alert("Error: " + error.message);
+            resultDiv.style.display = 'none';
+        }
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Openreach Allocation Tool</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            background: #f4f7fa;
+            color: #333;
+        }
+        header {
+            background-color: #003865;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        main {
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2, h3 { color: #003865; }
+        .upload-box {
+            border: 2px dashed #0078d4;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            border-radius: 8px;
+            background-color: #f0f8ff;
+        }
+        .file-input-container {
+            margin-bottom: 15px;
+        }
+        button {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #005a9e; }
+        .instructions {
+            background: #e6f2ff;
+            padding: 15px;
+            border-left: 5px solid #0078d4;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        #autoAllocResult {
+            margin-top: 20px;
+            display: none;
+            text-align: center;
+        }
+        footer {
+            background-color: #003865;
+            color: white;
+            text-align: center;
+            padding: 15px 10px;
+            margin-top: 40px;
+            font-size: 14px;
+        }
+        a {
+            color: #0078d4;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Openreach Allocation Tool</h1>
+    </header>
+
+    <main>
+        <h2>Auto Allocation Based on Pending</h2>
+
+        <div class="instructions">
+            <ol>
+                <li>Upload the <strong>Main Allocation</strong> file</li>
+                <li>Upload the <strong>Associate File</strong></li>
+                <li>Upload the <strong>Pending File</strong></li>
+                <li>Click "Auto Allocate"</li>
+            </ol>
+        </div>
+
+        <form id="autoAllocationForm">
+            <div class="upload-box">
+                <h3>Main Allocation File</h3>
+                <div class="file-input-container">
+                    <input type="file" id="mainFile2" accept=".xlsx" required>
+                </div>
+            </div>
+
+            <div class="upload-box">
+                <h3>Associate File</h3>
+                <div class="file-input-container">
+                    <input type="file" id="associateFile2" accept=".xlsx" required>
+                </div>
+            </div>
+
+            <div class="upload-box">
+                <h3>Pending File</h3>
+                <div class="file-input-container">
+                    <input type="file" id="pendingFile" accept=".xlsx" required>
+                </div>
+            </div>
+
+            <button type="submit">Auto Allocate</button>
+        </form>
+
+        <div id="autoAllocResult"></div>
+    </main>
+
+    <footer>
+        &copy; 2025 Openreach. All Rights Reserved.
+    </footer>
+
+    <script>
+        // Auto Allocation based on pending form
+        document.getElementById('autoAllocationForm').onsubmit = async function(e) {
+            e.preventDefault();
+
+            const mainFile = document.getElementById('mainFile2').files[0];
+            const associateFile = document.getElementById('associateFile2').files[0];
+            const pendingFile = document.getElementById('pendingFile').files[0];
+            const resultDiv = document.getElementById('autoAllocResult');
+
+            if (!mainFile || !associateFile || !pendingFile) {
+                alert('Please upload all three files.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('main_file', mainFile);
+            formData.append('associate_file', associateFile);
+            formData.append('pending_file', pendingFile);
+
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Processing auto allocation... Please wait</p>';
+
+            try {
+                const response = await fetch('/auto-allocation', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error(await response.text());
+
+                const blob = await response.blob();
+                const downloadUrl = URL.createObjectURL(blob);
+
+                resultDiv.innerHTML = `
+                    <p><a href="${downloadUrl}" download="auto_allocation_report.xlsx">Download Auto Allocation Report</a></p>
+                `;
+            } catch (err) {
+                alert("Error: " + err.message);
+                resultDiv.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>
